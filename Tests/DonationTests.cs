@@ -1,0 +1,1 @@
+// DonationTests.cs\nusing NUnit.Framework;\nusing System;\nusing System.Net.Http;\nusing System.Threading.Tasks;\n\n[TestFixture]\npublic class DonationTests\n{\n    private DonationApiClient _client;\n\n    [SetUp]\n    public void Setup()\n    {\n        var httpClient = new HttpClient { Base
