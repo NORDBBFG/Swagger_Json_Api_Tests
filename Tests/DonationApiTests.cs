@@ -1,0 +1,1 @@
+using System;\nusing System.Net;\nusing System.Net.Http;\nusing System.Threading.Tasks;\nusing DonorApp.Services.Api;\nusing DonorApp.Services.DTO;\nusing NUnit.Framework;\n\nnamespace DonorApp.Tests\n{\n    [TestFixture]\n    public class DonationApiTests\n    {\n        private DonationApiClient _apiClient;\n        private const string BaseUrl = \"https://api.donor
