@@ -1,8 +1,8 @@
 using System;
-using System.Collections.Generic;
 using System.Net.Http;
-using System.Net.Http.Json;
+using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 public class ApiResponse<T>
 {
@@ -17,9 +17,9 @@ public class BadgeApiClient
     private readonly string _baseUrl;
     private bool _simulateError;
 
-    public BadgeApiClient(HttpClient httpClient, string baseUrl)
+    public BadgeApiClient(string baseUrl)
     {
-        _httpClient = httpClient;
+        _httpClient = new HttpClient();
         _baseUrl = baseUrl;
     }
 
@@ -28,37 +28,61 @@ public class BadgeApiClient
         _simulateError = simulate;
     }
 
-    public async Task<ApiResponse<List<BadgeDto>>> GetBadgesAsync()
+    public async Task<ApiResponse<ContentResult>> AddBadgeAsync(BadgeDto badge)
     {
         if (_simulateError)
         {
-            return new ApiResponse<List<BadgeDto>>
+            return new ApiResponse<ContentResult>
             {
                 StatusCode = 500,
-                ErrorMessage = "Simulated Internal Server Error"
+                ErrorMessage = "Simulated server error"
             };
         }
 
-        var response = await _httpClient.GetAsync(`${_baseUrl}/api/v1/badges`);
-        var statusCode = (int)response.StatusCode;
+        var json = JsonConvert.SerializeObject(badge);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        var response = await _httpClient.PostAsync($"{_baseUrl}/api/v1/badge", content);
+
+        return await ProcessResponseAsync<ContentResult>(response);
+    }
+
+    public async Task<ApiResponse<ContentResult>> EditBadgeAsync(BadgeDto badge)
+    {
+        if (_simulateError)
+        {
+            return new ApiResponse<ContentResult>
+            {
+                StatusCode = 500,
+                ErrorMessage = "Simulated server error"
+            };
+        }
+
+        var json = JsonConvert.SerializeObject(badge);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        var response = await _httpClient.PutAsync($"{_baseUrl}/api/v1/badge", content);
+
+        return await ProcessResponseAsync<ContentResult>(response);
+    }
+
+    private async Task<ApiResponse<T>> ProcessResponseAsync<T>(HttpResponseMessage response)
+    {
+        var apiResponse = new ApiResponse<T>
+        {
+            StatusCode = (int)response.StatusCode
+        };
 
         if (response.IsSuccessStatusCode)
         {
-            var badges = await response.Content.ReadFromJsonAsync<List<BadgeDto>>();
-            return new ApiResponse<List<BadgeDto>>
-            {
-                Data = badges,
-                StatusCode = statusCode
-            };
+            var responseContent = await response.Content.ReadAsStringAsync();
+            apiResponse.Data = JsonConvert.DeserializeObject<T>(responseContent);
         }
         else
         {
-            var errorContent = await response.Content.ReadFromJsonAsync<ContentResult>();
-            return new ApiResponse<List<BadgeDto>>
-            {
-                StatusCode = statusCode,
-                ErrorMessage = errorContent?.Content
-            };
+            apiResponse.ErrorMessage = await response.Content.ReadAsStringAsync();
         }
+
+        return apiResponse;
     }
 }
