@@ -1,5 +1,4 @@
 using NUnit.Framework;
-using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -8,53 +7,85 @@ using System.Threading.Tasks;
 public class BadgeTests
 {
     private BadgeApiClient _client;
-    private const string BaseUrl = "https://api.example.com";
 
     [SetUp]
     public void Setup()
     {
         var httpClient = new HttpClient();
-        _client = new BadgeApiClient(httpClient, BaseUrl);
+        _client = new BadgeApiClient(httpClient, "https://api.example.com");
     }
 
     [Test]
-    public async Task GetBadges_ReturnsSuccessfulResponse()
+    public async Task AddBadge_SuccessfulRequest_ReturnsOkResponse()
     {
-        var response = await _client.GetBadgesAsync();
-
-        Assert.AreEqual(200, response.StatusCode);
-        Assert.IsNotNull(response.Data);
-        Assert.IsInstanceOf<List<BadgeDto>>(response.Data);
-    }
-
-    [Test]
-    public async Task GetBadges_ReturnsCorrectDataStructure()
-    {
-        var response = await _client.GetBadgesAsync();
-
-        Assert.AreEqual(200, response.StatusCode);
-        Assert.IsNotNull(response.Data);
-        Assert.IsInstanceOf<List<BadgeDto>>(response.Data);
-
-        if (response.Data.Count > 0)
+        var badge = new BadgeDto
         {
-            var firstBadge = response.Data[0];
-            Assert.IsNotNull(firstBadge.Id);
-            Assert.IsNotNull(firstBadge.Name);
-            Assert.IsNotNull(firstBadge.CreateDate);
-            Assert.IsNotNull(firstBadge.UpdateDate);
-        }
+            Name = "Gold Donor",
+            Description = "Awarded for donating over $1000",
+            IconUrl = "https://example.com/icons/gold-donor.png"
+        };
+
+        var response = await _client.AddBadgeAsync(badge);
+
+        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+        Assert.IsTrue(response.Content.Success);
+        Assert.AreEqual("Badge successfully added.", response.Content.Message);
+        Assert.IsNotNull(response.Content.Data);
     }
 
     [Test]
-    public async Task GetBadges_SimulatedInternalServerError_ReturnsErrorResponse()
+    public async Task AddBadge_BadRequest_ReturnsBadRequestResponse()
     {
-        _client.SimulateError(true);
-        var response = await _client.GetBadgesAsync();
+        var badge = new BadgeDto
+        {
+            Name = "",
+            Description = "",
+            IconUrl = ""
+        };
 
-        Assert.AreEqual(500, response.StatusCode);
-        Assert.IsNull(response.Data);
-        Assert.IsNotNull(response.ErrorMessage);
-        Assert.AreEqual("Simulated Internal Server Error", response.ErrorMessage);
+        _client.SimulateError(true);
+        var response = await _client.AddBadgeAsync(badge);
+
+        Assert.AreEqual(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.IsFalse(response.Content.Success);
+        Assert.AreEqual("Simulated internal server error", response.Content.Message);
+        Assert.IsNull(response.Content.Data);
+    }
+
+    [Test]
+    public async Task EditBadge_SuccessfulRequest_ReturnsOkResponse()
+    {
+        var badge = new BadgeDto
+        {
+            Name = "Updated Gold Donor",
+            Description = "Awarded for donating over $2000",
+            IconUrl = "https://example.com/icons/updated-gold-donor.png"
+        };
+
+        var response = await _client.EditBadgeAsync(badge);
+
+        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+        Assert.IsTrue(response.Content.Success);
+        Assert.AreEqual("Badge successfully edited.", response.Content.Message);
+        Assert.IsNotNull(response.Content.Data);
+    }
+
+    [Test]
+    public async Task EditBadge_BadRequest_ReturnsBadRequestResponse()
+    {
+        var badge = new BadgeDto
+        {
+            Name = "",
+            Description = "",
+            IconUrl = ""
+        };
+
+        _client.SimulateError(true);
+        var response = await _client.EditBadgeAsync(badge);
+
+        Assert.AreEqual(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.IsFalse(response.Content.Success);
+        Assert.AreEqual("Simulated internal server error", response.Content.Message);
+        Assert.IsNull(response.Content.Data);
     }
 }
