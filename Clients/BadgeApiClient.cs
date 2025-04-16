@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
-using System.Net.Http.Json;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 public class ApiResponse<T>
 {
@@ -17,9 +17,9 @@ public class BadgeApiClient
     private readonly string _baseUrl;
     private bool _simulateError;
 
-    public BadgeApiClient(HttpClient httpClient, string baseUrl)
+    public BadgeApiClient(string baseUrl)
     {
-        _httpClient = httpClient;
+        _httpClient = new HttpClient();
         _baseUrl = baseUrl;
     }
 
@@ -39,25 +39,24 @@ public class BadgeApiClient
             };
         }
 
-        var response = await _httpClient.GetAsync(`${_baseUrl}/api/v1/badges`);
-        var statusCode = (int)response.StatusCode;
+        var response = await _httpClient.GetAsync($"{_baseUrl}/api/v1/badges");
+        var content = await response.Content.ReadAsStringAsync();
 
         if (response.IsSuccessStatusCode)
         {
-            var badges = await response.Content.ReadFromJsonAsync<List<BadgeDto>>();
+            var badges = JsonConvert.DeserializeObject<List<BadgeDto>>(content);
             return new ApiResponse<List<BadgeDto>>
             {
                 Data = badges,
-                StatusCode = statusCode
+                StatusCode = (int)response.StatusCode
             };
         }
         else
         {
-            var errorContent = await response.Content.ReadFromJsonAsync<ContentResult>();
             return new ApiResponse<List<BadgeDto>>
             {
-                StatusCode = statusCode,
-                ErrorMessage = errorContent?.Content
+                StatusCode = (int)response.StatusCode,
+                ErrorMessage = content
             };
         }
     }
