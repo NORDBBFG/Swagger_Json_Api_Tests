@@ -1,60 +1,85 @@
 using NUnit.Framework;
-using System.Collections.Generic;
 using System.Net;
-using System.Net.Http;
 using System.Threading.Tasks;
 
 [TestFixture]
 public class BadgeTests
 {
     private BadgeApiClient _client;
-    private const string BaseUrl = "https://api.example.com";
 
     [SetUp]
     public void Setup()
     {
-        var httpClient = new HttpClient();
-        _client = new BadgeApiClient(httpClient, BaseUrl);
+        _client = new BadgeApiClient("http://api.example.com");
     }
 
     [Test]
-    public async Task GetBadges_ReturnsSuccessfulResponse()
+    public async Task AddBadge_SuccessfulRequest_ReturnsOk()
     {
-        var response = await _client.GetBadgesAsync();
+        var badge = new BadgeDto { Name = "Test Badge", Description = "Test Description" };
+
+        var response = await _client.AddBadgeAsync(badge);
 
         Assert.AreEqual(200, response.StatusCode);
         Assert.IsNotNull(response.Data);
-        Assert.IsInstanceOf<List<BadgeDto>>(response.Data);
+        Assert.AreEqual(200, response.Data.StatusCode);
     }
 
     [Test]
-    public async Task GetBadges_ReturnsCorrectDataStructure()
+    public async Task AddBadge_BadRequest_ReturnsBadRequest()
     {
-        var response = await _client.GetBadgesAsync();
+        var badge = new BadgeDto { Description = "Test Description" };
 
-        Assert.AreEqual(200, response.StatusCode);
-        Assert.IsNotNull(response.Data);
-        Assert.IsInstanceOf<List<BadgeDto>>(response.Data);
+        var response = await _client.AddBadgeAsync(badge);
 
-        if (response.Data.Count > 0)
-        {
-            var firstBadge = response.Data[0];
-            Assert.IsNotNull(firstBadge.Id);
-            Assert.IsNotNull(firstBadge.Name);
-            Assert.IsNotNull(firstBadge.CreateDate);
-            Assert.IsNotNull(firstBadge.UpdateDate);
-        }
+        Assert.AreEqual(400, response.StatusCode);
+        Assert.IsNotNull(response.ErrorMessage);
     }
 
     [Test]
-    public async Task GetBadges_SimulatedInternalServerError_ReturnsErrorResponse()
+    public async Task AddBadge_ServerError_ReturnsInternalServerError()
     {
         _client.SimulateError(true);
-        var response = await _client.GetBadgesAsync();
+        var badge = new BadgeDto { Name = "Test Badge", Description = "Test Description" };
+
+        var response = await _client.AddBadgeAsync(badge);
 
         Assert.AreEqual(500, response.StatusCode);
-        Assert.IsNull(response.Data);
         Assert.IsNotNull(response.ErrorMessage);
-        Assert.AreEqual("Simulated Internal Server Error", response.ErrorMessage);
+    }
+
+    [Test]
+    public async Task EditBadge_SuccessfulRequest_ReturnsOk()
+    {
+        var badge = new BadgeDto { Id = 1, Name = "Updated Badge", Description = "Updated Description" };
+
+        var response = await _client.EditBadgeAsync(badge);
+
+        Assert.AreEqual(200, response.StatusCode);
+        Assert.IsNotNull(response.Data);
+        Assert.AreEqual(200, response.Data.StatusCode);
+    }
+
+    [Test]
+    public async Task EditBadge_BadRequest_ReturnsBadRequest()
+    {
+        var badge = new BadgeDto { Id = 1, Description = "Updated Description" };
+
+        var response = await _client.EditBadgeAsync(badge);
+
+        Assert.AreEqual(400, response.StatusCode);
+        Assert.IsNotNull(response.ErrorMessage);
+    }
+
+    [Test]
+    public async Task EditBadge_ServerError_ReturnsInternalServerError()
+    {
+        _client.SimulateError(true);
+        var badge = new BadgeDto { Id = 1, Name = "Updated Badge", Description = "Updated Description" };
+
+        var response = await _client.EditBadgeAsync(badge);
+
+        Assert.AreEqual(500, response.StatusCode);
+        Assert.IsNotNull(response.ErrorMessage);
     }
 }
