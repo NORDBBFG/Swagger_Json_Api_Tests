@@ -1,63 +1,50 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
-using System.Net.Http.Json;
+using System.Text.Json;
 using System.Threading.Tasks;
-
-public class ApiResponse<T>
-{
-    public T Data { get; set; }
-    public int StatusCode { get; set; }
-    public string ErrorMessage { get; set; }
-}
 
 public class DonationApiClient
 {
     private readonly HttpClient _httpClient;
     private readonly string _baseUrl;
-    private bool _simulateError;
 
     public DonationApiClient(string baseUrl)
     {
-        _httpClient = new HttpClient();
         _baseUrl = baseUrl;
+        _httpClient = new HttpClient();
     }
 
-    public void SimulateError(bool simulate)
+    public async Task<ApiResponse<List<QuickCommentDto>>> GetQuickCommentsAsync(QuickCommentCategory category)
     {
-        _simulateError = simulate;
-    }
-
-    public async Task<ApiResponse<List<DonationDto>>> GetDonationsAsync(DonationFilter filter)
-    {
-        if (_simulateError)
-        {
-            return new ApiResponse<List<DonationDto>>
-            {
-                StatusCode = 500,
-                ErrorMessage = "Simulated internal server error"
-            };
-        }
-
-        var response = await _httpClient.PostAsJsonAsync($"{_baseUrl}/api/v1/donations", filter);
+        var url = $"{_baseUrl}/api/v1/QuickComments?quickCommentCategory={(int)category}";
+        var response = await _httpClient.PostAsync(url, null);
 
         if (response.IsSuccessStatusCode)
         {
-            var donations = await response.Content.ReadFromJsonAsync<List<DonationDto>>();
-            return new ApiResponse<List<DonationDto>>
-            {
-                Data = donations,
-                StatusCode = (int)response.StatusCode
-            };
+            var content = await response.Content.ReadAsStringAsync();
+            var quickComments = JsonSerializer.Deserialize<List<QuickCommentDto>>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            return new ApiResponse<List<QuickCommentDto>>(response.StatusCode, quickComments);
         }
         else
         {
-            var errorContent = await response.Content.ReadFromJsonAsync<ContentResult>();
-            return new ApiResponse<List<DonationDto>>
-            {
-                StatusCode = (int)response.StatusCode,
-                ErrorMessage = errorContent.Content
-            };
+            var errorContent = await response.Content.ReadAsStringAsync();
+            var errorResult = JsonSerializer.Deserialize<ContentResult>(errorContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            return new ApiResponse<List<QuickCommentDto>>(response.StatusCode, null, errorResult);
         }
+    }
+}
+
+public class ApiResponse<T>
+{
+    public System.Net.HttpStatusCode StatusCode { get; }
+    public T Data { get; }
+    public ContentResult ErrorResult { get; }
+
+    public ApiResponse(System.Net.HttpStatusCode statusCode, T data, ContentResult errorResult = null)
+    {
+        StatusCode = statuscode;
+        Data = data;
+        ErrorResult = errorResult;
     }
 }
