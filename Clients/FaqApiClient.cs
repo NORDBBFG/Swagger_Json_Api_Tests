@@ -18,39 +18,38 @@ namespace YourNamespace.ApiClient
             _httpClient = new HttpClient();
         }
 
-        public async Task<ApiResponse<List<FaqArticleDto>>> GetFaqsByFilterAsync(FaqFilter filter)
+        public async Task<ApiResponse<FaqCategoryDto>> EditFaqCategoryAsync(FaqCategoryDto faqCategory)
         {
-            var url = $"{_baseUrl}/api/v1/faqs/filter";
-            var content = new StringContent(JsonConvert.SerializeObject(filter), Encoding.UTF8, "application/json");
+            var url = $"{_baseUrl}/api/v1/faqs/category";
+            var content = new StringContent(JsonConvert.SerializeObject(faqCategory), Encoding.UTF8, "application/json");
 
-            var response = await _httpClient.PostAsync(url, content);
+            var response = await _httpClient.PutAsync(url, content);
             var responseContent = await response.Content.ReadAsStringAsync();
 
             if (response.IsSuccessStatusCode)
             {
-                var faqArticles = JsonConvert.DeserializeObject<List<FaqArticleDto>>(responseContent);
-                return new ApiResponse<List<FaqArticleDto>>
-                {
-                    Data = faqArticles,
-                    StatusCode = (int)response.StatusCode
-                };
+                var updatedFaqCategory = JsonConvert.DeserializeObject<FaqCategoryDto>(responseContent);
+                return new ApiResponse<FaqCategoryDto>(response.StatusCode, updatedFaqCategory);
             }
             else
             {
                 var errorContent = JsonConvert.DeserializeObject<ContentResult>(responseContent);
-                return new ApiResponse<List<FaqArticleDto>>
-                {
-                    Error = errorContent,
-                    StatusCode = (int)response.StatusCode
-                };
+                return new ApiResponse<FaqCategoryDto>(response.StatusCode, null, errorContent);
             }
         }
     }
 
     public class ApiResponse<T>
     {
-        public T Data { get; set; }
-        public ContentResult Error { get; set; }
-        public int StatusCode { get; set; }
+        public System.Net.HttpStatusCode StatusCode { get; }
+        public T Data { get; }
+        public ContentResult ErrorContent { get; }
+
+        public ApiResponse(System.Net.HttpStatusCode statusCode, T data, ContentResult errorContent = null)
+        {
+            StatusCode = statusCode;
+            Data = data;
+            ErrorContent = errorContent;
+        }
     }
 }
