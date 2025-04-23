@@ -29,7 +29,7 @@ public class QuickCommentApiClient
         {
             var errorContent = await response.Content.ReadAsStringAsync();
             var errorResult = JsonSerializer.Deserialize<ContentResult>(errorContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            return new ApiResponse<List<QuickCommentDto>>(response.StatusCode, default, errorResult);
+            return new ApiResponse<List<QuickCommentDto>>(response.StatusCode, null, errorResult);
         }
     }
 }
@@ -38,12 +38,12 @@ public class ApiResponse<T>
 {
     public System.Net.HttpStatusCode StatusCode { get; }
     public T Data { get; }
-    public ContentResult ErrorContent { get; }
+    public ContentResult ErrorResult { get; }
 
-    public ApiResponse(System.Net.HttpStatusCode statusCode, T data, ContentResult errorContent = null)
+    public ApiResponse(System.Net.HttpStatusCode statusCode, T data, ContentResult errorResult = null)
     {
         StatusCode = statusCode;
         Data = data;
-        ErrorContent = errorContent;
+        ErrorResult = errorResult;
     }
 }
