@@ -1,70 +1,52 @@
-using NUnit.Framework;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
+using System;
+using System.Net.Http;
 using System.Threading.Tasks;
+using NUnit.Framework;
 using FluentAssertions;
+using YourNamespace.ApiClients;
+using YourNamespace.Models;
 
-[TestFixture]
-public class ApiQcPost001Tests
+namespace YourNamespace.Tests
 {
-    private QuickCommentApiClient _client;
-
-    [SetUp]
-    public void Setup()
+    [TestFixture]
+    public class ApiQcPost001Tests
     {
-        _client = new QuickCommentApiClient("https://api-base-url.com"); // Replace with actual base URL
-    }
+        private QuickCommentsApiClient _apiClient;
 
-    [Test]
-    public async Task GetQuickComments_ValidCategory_ReturnsQuickComments()
-    {
-        // Arrange
-        var category = QuickCommentCategory.ReasonForCancellation;
-
-        // Act
-        var response = await _client.GetQuickCommentsAsync(category);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        response.Data.Should().NotBeNull();
-        response.Data.Should().BeOfType<List<QuickCommentDto>>();
-
-        foreach (var quickComment in response.Data)
+        [SetUp]
+        public void Setup()
         {
-            quickComment.Id.Should().BeGreaterThan(0);
-            quickComment.Comment.Should().BeOfType<string>().Or.BeNull();
+            var httpClient = new HttpClient();
+            var baseUrl = "https://your-api-base-url.com"; // Replace with your actual base URL
+            _apiClient = new QuickCommentsApiClient(httpClient, baseUrl);
         }
-    }
 
-    [Test]
-    public async Task GetQuickComments_ValidCategory_ReturnsCorrectContentType()
-    {
-        // Arrange
-        var category = QuickCommentCategory.ReasonForCancellation;
+        [Test]
+        public async Task PostQuickComments_ReturnsCollectionOfQuickComments()
+        {
+            // Arrange
+            var request = new QuickCommentRequest
+            {
+                Comment = "This is a test comment",
+                Author = "Test Author"
+            };
 
-        // Act
-        var response = await _client.GetQuickCommentsAsync(category);
+            // Act
+            var response = await _apiClient.PostQuickCommentsAsync(request);
 
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        // Note: We can't directly check the content type in this setup, 
-        // as it's not exposed in our ApiResponse class. 
-        // In a real-world scenario, you might want to add this information to the ApiResponse.
-    }
+            // Assert
+            response.StatusCode.Should().Be(200);
+            response.Content.Should().NotBeNull();
+            response.Content.Comments.Should().NotBeNull().And.NotBeEmpty();
 
-    [Test]
-    public async Task GetQuickComments_InvalidCategory_ReturnsBadRequest()
-    {
-        // Arrange
-        var invalidCategory = (QuickCommentCategory)999; // Invalid category
-
-        // Act
-        var response = await _client.GetQuickCommentsAsync(invalidCategory);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        response.ErrorResult.Should().NotBeNull();
-        response.ErrorResult.StatusCode.Should().Be(400);
+            foreach (var comment in response.Content.Comments)
+            {
+                comment.Id.Should().NotBeNullOrEmpty();
+                comment.Comment.Should.
+                Be(request.Comment);
+                comment.Author.Should().Be(request.Author);
+                comment.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(10));
+            }
+        }
     }
 }
