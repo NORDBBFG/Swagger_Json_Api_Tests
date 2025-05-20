@@ -2,9 +2,9 @@ using System;
 using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using FluentAssertions;
 using YourNamespace.ApiClients;
 using YourNamespace.Models;
+using FluentAssertions;
 
 namespace YourNamespace.Tests
 {
@@ -17,36 +17,30 @@ namespace YourNamespace.Tests
         public void Setup()
         {
             var httpClient = new HttpClient();
-            var baseUrl = "https://your-api-base-url.com"; // Replace with your actual base URL
-            _apiClient = new QuickCommentsApiClient(httpClient, baseUrl);
+            _apiClient = new QuickCommentsApiClient(httpClient);
         }
 
         [Test]
-        public async Task PostQuickComments_ReturnsCollectionOfQuickComments()
+        public async Task CreateQuickComment_ReturnsCorrectResponse()
         {
             // Arrange
-            var request = new QuickCommentRequest
+            var request = new QuickCommentRequestDto
             {
                 Comment = "This is a test comment",
-                Author = "Test Author"
+                UserId = 1
             };
 
             // Act
-            var response = await _apiClient.PostQuickCommentsAsync(request);
+            var response = await _apiClient.CreateQuickCommentAsync(request);
 
             // Assert
             response.StatusCode.Should().Be(200);
-            response.Content.Should().NotBeNull();
-            response.Content.Comments.Should().NotBeNull().And.NotBeEmpty();
-
-            foreach (var comment in response.Content.Comments)
-            {
-                comment.Id.Should().NotBeNullOrEmpty();
-                comment.Comment.Should.
-                Be(request.Comment);
-                comment.Author.Should().Be(request.Author);
-                comment.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(10));
-            }
+            response.Data.Should().NotBeNull();
+            response.Data.Should().BeOfType<QuickCommentResponseDto>();
+            response.Data.Comment.Should().Be(request.Comment);
+            response.Data.UserId.Should().Be(request.UserId);
+            response.Data.Id.Should().BeGreaterThan(0);
+            response.Data.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
         }
     }
 }
