@@ -1,64 +1,46 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
-using System.Net.Http.Json;
+using System.Text.Json;
 using System.Threading.Tasks;
-
-public class ApiResponse<T>
-{
-    public T Data { get; set; }
-    public int StatusCode { get; set; }
-    public string ErrorMessage { get; set; }
-}
 
 public class BadgeApiClient
 {
     private readonly HttpClient _httpClient;
-    private readonly string _baseUrl;
-    private bool _simulateError;
+    private const string BaseUrl = "https://api.example.com"; // Replace with actual base URL
 
-    public BadgeApiClient(HttpClient httpClient, string baseUrl)
+    public BadgeApiClient(HttpClient httpClient)
     {
         _httpClient = httpClient;
-        _baseUrl = baseUrl;
-    }
-
-    public void SimulateError(bool simulate)
-    {
-        _simulateError = simulate;
+        _httpClient.BaseAddress = new Uri(BaseUrl);
     }
 
     public async Task<ApiResponse<List<BadgeDto>>> GetBadgesAsync()
     {
-        if (_simulateError)
-        {
-            return new ApiResponse<List<BadgeDto>>
-            {
-                StatusCode = 500,
-                ErrorMessage = "Simulated Internal Server Error"
-            };
-        }
-
-        var response = await _httpClient.GetAsync(`${_baseUrl}/api/v1/badges`);
-        var statusCode = (int)response.StatusCode;
+        var response = await _httpClient.GetAsync("/api/v1/badges");
+        var content = await response.Content.ReadAsStringAsync();
 
         if (response.IsSuccessStatusCode)
         {
-            var badges = await response.Content.ReadFromJsonAsync<List<BadgeDto>>();
-            return new ApiResponse<List<BadgeDto>>
-            {
-                Data = badges,
-                StatusCode = statusCode
-            };
+            var badges = JsonSerializer.Deserialize<List<BadgeDto>>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            return new ApiResponse<List<BadgeDto>>(badges, response.StatusCode);
         }
-        else
-        {
-            var errorContent = await response.Content.ReadFromJsonAsync<ContentResult>();
-            return new ApiResponse<List<BadgeDto>>
-            {
-                StatusCode = statusCode,
-                ErrorMessage = errorContent?.Content
-            };
-        }
+
+        var errorResult = JsonSerializer.Deserialize<ContentResult>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        return new ApiResponse<List<BadgeDto>>(null, response.StatusCode, errorResult);
+    }
+}
+
+public class ApiResponse<T>
+{
+    public T Data { get; }
+    public System.Net.HttpStatusCode StatusCode { get; }
+    public ContentResult ErrorResult { get; }
+
+    public ApiResponse(T data, System.Net.HttpStatusCode statusCode, ContentResult errorResult = null)
+    {
+        Data = data;
+        StatusCode = statusCode;
+        ErrorResult = errorResult;
     }
 }
