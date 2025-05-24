@@ -1,64 +1,34 @@
 using System;
-using System.Collections.Generic;
 using System.Net.Http;
-using System.Net.Http.Json;
 using System.Threading.Tasks;
-
-public class ApiResponse<T>
-{
-    public T Data { get; set; }
-    public int StatusCode { get; set; }
-    public string ErrorMessage { get; set; }
-}
+using Newtonsoft.Json;
 
 public class BadgeApiClient
 {
     private readonly HttpClient _httpClient;
-    private readonly string _baseUrl;
-    private bool _simulateError;
+    private const string BaseUrl = "https://api.example.com"; // Replace with actual base URL
 
-    public BadgeApiClient(HttpClient httpClient, string baseUrl)
+    public BadgeApiClient(HttpClient httpClient)
     {
-        _httpClient = httpClient;
-        _baseUrl = baseUrl;
+        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        _httpClient.BaseAddress = new Uri(BaseUrl);
     }
 
-    public void SimulateError(bool simulate)
+    public async Task<ApiResponse<ContentResult>> GetBadgeAsync()
     {
-        _simulateError = simulate;
+        var response = await _httpClient.GetAsync("/api/v1/badge");
+        var content = await response.Content.ReadAsStringAsync();
+
+        return new ApiResponse<ContentResult>
+        {
+            StatusCode = (int)response.StatusCode,
+            Data = JsonConvert.DeserializeObject<ContentResult>(content)
+        };
     }
+}
 
-    public async Task<ApiResponse<List<BadgeDto>>> GetBadgesAsync()
-    {
-        if (_simulateError)
-        {
-            return new ApiResponse<List<BadgeDto>>
-            {
-                StatusCode = 500,
-                ErrorMessage = "Simulated Internal Server Error"
-            };
-        }
-
-        var response = await _httpClient.GetAsync(`${_baseUrl}/api/v1/badges`);
-        var statusCode = (int)response.StatusCode;
-
-        if (response.IsSuccessStatusCode)
-        {
-            var badges = await response.Content.ReadFromJsonAsync<List<BadgeDto>>();
-            return new ApiResponse<List<BadgeDto>>
-            {
-                Data = badges,
-                StatusCode = statusCode
-            };
-        }
-        else
-        {
-            var errorContent = await response.Content.ReadFromJsonAsync<ContentResult>();
-            return new ApiResponse<List<BadgeDto>>
-            {
-                StatusCode = statusCode,
-                ErrorMessage = errorContent?.Content
-            };
-        }
-    }
+public class ApiResponse<T>
+{
+    public int StatusCode { get; set; }
+    public T Data { get; set; }
 }
