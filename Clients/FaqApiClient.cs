@@ -1,56 +1,45 @@
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
-using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
-using YourNamespace.Models;
 
-namespace YourNamespace.ApiClient
+public class FaqApiClient
 {
-    public class FaqApiClient
+    private readonly HttpClient _httpClient;
+    private readonly string _baseUrl;
+
+    public FaqApiClient(HttpClient httpClient, string baseUrl)
     {
-        private readonly HttpClient _httpClient;
-        private readonly string _baseUrl;
-
-        public FaqApiClient(string baseUrl)
-        {
-            _baseUrl = baseUrl;
-            _httpClient = new HttpClient();
-        }
-
-        public async Task<ApiResponse<List<FaqArticleDto>>> GetFaqsByFilterAsync(FaqFilter filter)
-        {
-            var url = $"{_baseUrl}/api/v1/faqs/filter";
-            var content = new StringContent(JsonConvert.SerializeObject(filter), Encoding.UTF8, "application/json");
-
-            var response = await _httpClient.PostAsync(url, content);
-            var responseContent = await response.Content.ReadAsStringAsync();
-
-            if (response.IsSuccessStatusCode)
-            {
-                var faqArticles = JsonConvert.DeserializeObject<List<FaqArticleDto>>(responseContent);
-                return new ApiResponse<List<FaqArticleDto>>
-                {
-                    Data = faqArticles,
-                    StatusCode = (int)response.StatusCode
-                };
-            }
-            else
-            {
-                var errorContent = JsonConvert.DeserializeObject<ContentResult>(responseContent);
-                return new ApiResponse<List<FaqArticleDto>>
-                {
-                    Error = errorContent,
-                    StatusCode = (int)response.StatusCode
-                };
-            }
-        }
+        _httpClient = httpClient;
+        _baseUrl = baseUrl;
     }
 
-    public class ApiResponse<T>
+    public async Task<ApiResponse<List<FaqCategoryDto>>> GetFaqCategoriesAsync()
     {
-        public T Data { get; set; }
-        public ContentResult Error { get; set; }
-        public int StatusCode { get; set; }
+        var response = await _httpClient.GetAsync($"{_baseUrl}/api/v1/faqs/categories");
+        return await ProcessResponseAsync<List<FaqCategoryDto>>(response);
     }
+
+    private async Task<ApiResponse<T>> ProcessResponseAsync<T>(HttpResponseMessage response)
+    {
+        var content = await response.Content.ReadAsStringAsync();
+        if (response.IsSuccessStatusCode)
+        {
+            var data = JsonSerializer.Deserialize<T>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            return new ApiResponse<T> { Data = data, StatusCode = (int)response.StatusCode };
+        }
+        else
+        {
+            var errorResult = JsonSerializer.Deserialize<ContentResult>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            return new ApiResponse<T> { ErrorResult = errorResult, StatusCode = (int)response.StatusCode };
+        }
+    }
+}
+
+public class ApiResponse<T>
+{
+    public T Data { get; set; }
+    public ContentResult ErrorResult { get; set; }
+    public int StatusCode { get; set; }
 }
