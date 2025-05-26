@@ -1,63 +1,25 @@
 using System;
-using System.Collections.Generic;
 using System.Net.Http;
-using System.Net.Http.Json;
+using System.Text;
 using System.Threading.Tasks;
-
-public class ApiResponse<T>
-{
-    public T Data { get; set; }
-    public int StatusCode { get; set; }
-    public string ErrorMessage { get; set; }
-}
+using Newtonsoft.Json;
 
 public class DonationApiClient
 {
     private readonly HttpClient _httpClient;
-    private readonly string _baseUrl;
-    private bool _simulateError;
+    private const string BaseUrl = "https://api.example.com"; // Replace with actual base URL
 
-    public DonationApiClient(string baseUrl)
+    public DonationApiClient(HttpClient httpClient)
     {
-        _httpClient = new HttpClient();
-        _baseUrl = baseUrl;
+        _httpClient = httpClient;
+        _httpClient.BaseAddress = new Uri(BaseUrl);
     }
 
-    public void SimulateError(bool simulate)
+    public async Task<HttpResponseMessage> GetDonationsXlsxAsync(DonationFilter filter)
     {
-        _simulateError = simulate;
-    }
+        var json = JsonConvert.SerializeObject(filter);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-    public async Task<ApiResponse<List<DonationDto>>> GetDonationsAsync(DonationFilter filter)
-    {
-        if (_simulateError)
-        {
-            return new ApiResponse<List<DonationDto>>
-            {
-                StatusCode = 500,
-                ErrorMessage = "Simulated internal server error"
-            };
-        }
-
-        var response = await _httpClient.PostAsJsonAsync($"{_baseUrl}/api/v1/donations", filter);
-
-        if (response.IsSuccessStatusCode)
-        {
-            var donations = await response.Content.ReadFromJsonAsync<List<DonationDto>>();
-            return new ApiResponse<List<DonationDto>>
-            {
-                Data = donations,
-                StatusCode = (int)response.StatusCode
-            };
-        }
-        else
-        {
-            var errorContent = await response.Content.ReadFromJsonAsync<ContentResult>();
-            return new ApiResponse<List<DonationDto>>
-            {
-                StatusCode = (int)response.StatusCode,
-                ErrorMessage = errorContent.Content
-            };
-        }
+        return await _httpClient.PostAsync("/api/v1/donation/xlsx", content);
     }
 }
