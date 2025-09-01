@@ -1,5 +1,5 @@
 public class PageFilter
 {
-    public int PageNumber { get; set; }
-    public int PageSize { get; set; }
+    public int Number { get; set; }
+    public int PackageSize { get; set; }
 }

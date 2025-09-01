@@ -1,63 +1,51 @@
 using System;
-using System.Collections.Generic;
 using System.Net.Http;
-using System.Net.Http.Json;
+using System.Text;
 using System.Threading.Tasks;
-
-public class ApiResponse<T>
-{
-    public T Data { get; set; }
-    public int StatusCode { get; set; }
-    public string ErrorMessage { get; set; }
-}
+using Newtonsoft.Json;
 
 public class DonationApiClient
 {
     private readonly HttpClient _httpClient;
     private readonly string _baseUrl;
-    private bool _simulateError;
 
     public DonationApiClient(string baseUrl)
     {
-        _httpClient = new HttpClient();
         _baseUrl = baseUrl;
+        _httpClient = new HttpClient();
     }
 
-    public void SimulateError(bool simulate)
+    public async Task<ApiResponse<byte[]>> GetDonationsXlsxAsync(DonationFilter filter)
     {
-        _simulateError = simulate;
-    }
+        var url = $"{_baseUrl}/api/v1/donation/xlsx";
+        var content = new StringContent(JsonConvert.SerializeObject(filter), Encoding.UTF8, "application/json");
 
-    public async Task<ApiResponse<List<DonationDto>>> GetDonationsAsync(DonationFilter filter)
-    {
-        if (_simulateError)
-        {
-            return new ApiResponse<List<DonationDto>>
-            {
-                StatusCode = 500,
-                ErrorMessage = "Simulated internal server error"
-            };
-        }
-
-        var response = await _httpClient.PostAsJsonAsync($"{_baseUrl}/api/v1/donations", filter);
+        var response = await _httpClient.PostAsync(url, content);
 
         if (response.IsSuccessStatusCode)
         {
-            var donations = await response.Content.ReadFromJsonAsync<List<DonationDto>>();
-            return new ApiResponse<List<DonationDto>>
-            {
-                Data = donations,
-                StatusCode = (int)response.StatusCode
-            };
+            var xlsxContent = await response.Content.ReadAsByteArrayAsync();
+            return new ApiResponse<byte[]>(xlsxContent, (int)response.StatusCode);
         }
         else
         {
-            var errorContent = await response.Content.ReadFromJsonAsync<ContentResult>();
-            return new ApiResponse<List<DonationDto>>
-            {
-                StatusCode = (int)response.StatusCode,
-                ErrorMessage = errorContent.Content
-            };
+            var errorContent = await response.Content.ReadAsStringAsync();
+            var errorResult = JsonConvert.DeserializeObject<ContentResult>(errorContent);
+            return new ApiResponse<byte[]>(null, (int)response.StatusCode, errorResult);
         }
+    }
+}
+
+public class ApiResponse<T>
+{
+    public T Data { get; }
+    public int StatusCode { get; }
+    public ContentResult ErrorResult { get; }
+
+    public ApiResponse(T data, int statusCode, ContentResult errorResult = null)
+    {
+        Data = data;
+        StatusCode = statusCode;
+        ErrorResult = errorResult;
     }
 }
